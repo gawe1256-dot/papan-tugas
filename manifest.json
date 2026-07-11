@@ -2,7 +2,7 @@
   "name": "Papan Tugas",
   "short_name": "Papan Tugas",
   "description": "Pencatat PR dan deadline kuliah bertema papan gabus",
-  "start_url": "./tugas.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
