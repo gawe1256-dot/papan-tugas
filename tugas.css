@@ -86,6 +86,8 @@
   .modal::before { content: ''; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 16px; height: 16px; border-radius: 50%; background: var(--pin-red); box-shadow: 0 3px 4px rgba(0,0,0,0.4); }
   .modal h2 { font-family: 'Kalam', cursive; font-size: 24px; margin: 0 0 16px; }
   .field { margin-bottom: 14px; }
+  .field-row { display: flex; gap: 12px; }
+  .field-row .field { flex: 1; }
   .field label { display: block; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
   .field input, .field textarea { width: 100%; font-family: 'Inter', sans-serif; font-size: 14px; padding: 8px 10px; border: none; border-bottom: 2px solid var(--ink-soft); background: transparent; color: var(--ink); resize: none; }
   .field input:focus, .field textarea:focus { outline: none; border-bottom-color: var(--pin-red); }
