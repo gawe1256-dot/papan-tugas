@@ -1,0 +1,31 @@
+{
+  "name": "Papan Tugas",
+  "short_name": "Papan Tugas",
+  "description": "Pencatat PR dan deadline kuliah bertema papan gabus",
+  "start_url": "./tugas.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#432a1a",
+  "theme_color": "#5c3a24",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
