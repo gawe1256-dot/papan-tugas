@@ -24,15 +24,26 @@
   function rotFor(id) { let h=0; for (let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return rotations[h % rotations.length]; }
   function pinFor(id) { const p=['#c93b3b','#3a6ea5','#dba320','#4f8f5b','#8a4fb0']; let h=0; for (let i=0;i<id.length;i++) h=(h*17+id.charCodeAt(i))>>>0; return p[h % p.length]; }
   function daysUntil(dateStr) { const t=new Date(); t.setHours(0,0,0,0); const d=new Date(dateStr+'T00:00:00'); return Math.round((d-t)/86400000); }
-  function urgencyInfo(dateStr) {
-    const d = daysUntil(dateStr);
-    if (d < 0) return { label: 'Telat '+Math.abs(d)+' hari', bg:'var(--card-overdue)', line:'var(--card-overdue-line)', badgeColor:'var(--pin-red)' };
+  function deadlineDateTime(task) { return new Date(task.deadline + 'T' + (task.time || '23:59') + ':00'); }
+  function hoursUntil(task) { return (deadlineDateTime(task) - new Date()) / 3600000; }
+  function urgencyInfo(task) {
+    const d = daysUntil(task.deadline);
+    const h = hoursUntil(task);
+    if (h < 0) {
+      const hoursLate = Math.abs(h);
+      const label = hoursLate < 24 ? 'Telat ' + Math.round(hoursLate) + ' jam' : 'Telat ' + Math.abs(d) + ' hari';
+      return { label, bg:'var(--card-overdue)', line:'var(--card-overdue-line)', badgeColor:'var(--pin-red)' };
+    }
     if (d === 0) return { label:'Hari ini!', bg:'var(--card-overdue)', line:'var(--card-overdue-line)', badgeColor:'var(--pin-red)' };
     if (d === 1) return { label:'Besok', bg:'var(--card-urgent)', line:'var(--card-urgent-line)', badgeColor:'#b0512f' };
     if (d <= 6) return { label:d+' hari lagi', bg:'var(--card-soon)', line:'var(--card-soon-line)', badgeColor:'#8a6a10' };
     return { label:d+' hari lagi', bg:'var(--card-safe)', line:'var(--card-safe-line)', badgeColor:'#3d6b2f' };
   }
-  function formatDate(dateStr) { const d=new Date(dateStr+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}); }
+  function formatDate(task) {
+    const d = new Date(task.deadline+'T00:00:00');
+    const tanggal = d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+    return task.time ? `${tanggal}, ${task.time}` : tanggal;
+  }
   function escapeHtml(str) { const div=document.createElement('div'); div.textContent=str; return div.innerHTML; }
 
   function renderApp() {
@@ -74,7 +85,7 @@
 
   function renderReminderBanner() {
     const banner = document.getElementById('reminderBanner');
-    const urgent = tasks.filter(t => daysUntil(t.deadline) <= 0);
+    const urgent = tasks.filter(t => hoursUntil(t) <= 0);
     banner.innerHTML = urgent.length ? `<div class="reminder-banner">⚠️ ${urgent.length} tugas hari ini atau sudah lewat deadline — cek papan di bawah!</div>` : '';
   }
 
@@ -89,7 +100,7 @@
     container.innerHTML = '<div class="cards-grid" id="grid"></div>';
     const grid = document.getElementById('grid');
     sorted.forEach(task => {
-      const u = urgencyInfo(task.deadline);
+      const u = urgencyInfo(task);
       const cat = CATEGORIES[task.category] || CATEGORIES.lainnya;
       const card = document.createElement('div');
       card.className = 'card';
@@ -106,7 +117,7 @@
         <div class="card-course">${escapeHtml(task.course)}</div>
         <div class="card-desc">${escapeHtml(task.desc||'')}</div>
         <div class="card-footer">
-          <span class="card-date">${formatDate(task.deadline)}</span>
+          <span class="card-date">${formatDate(task)}</span>
           <span class="card-badge" style="background:#fff;color:${u.badgeColor}">${u.label}</span>
         </div>`;
       grid.appendChild(card);
@@ -116,7 +127,7 @@
 
   function removeTask(id) {
     tasks = tasks.filter(t => t.id !== id);
-    notifiedIds.delete(id);
+    ['24h','1h','late'].forEach(suffix => notifiedIds.delete(id + ':' + suffix));
     saveTasks(); saveNotified();
     renderReminderBanner(); renderCards();
   }
@@ -130,7 +141,10 @@
           <div class="field"><label>Mata Kuliah</label><input type="text" id="courseInput" placeholder="cth. Basis Data" maxlength="60" /></div>
           <div class="field"><label>Kategori</label><div class="cat-picker" id="catPicker"></div></div>
           <div class="field"><label>Detail Tugas (opsional)</label><textarea id="descInput" rows="2" placeholder="cth. Bab 3-4, kumpul di LMS" maxlength="140"></textarea></div>
-          <div class="field"><label>Deadline</label><input type="date" id="dateInput" /></div>
+          <div class="field-row">
+            <div class="field"><label>Deadline</label><input type="date" id="dateInput" /></div>
+            <div class="field"><label>Jam (opsional)</label><input type="time" id="timeInput" /></div>
+          </div>
           <div class="err-text" id="errText">Isi mata kuliah dan deadline dulu ya.</div>
           <div class="modal-actions">
             <button class="btn-secondary" id="cancelBtn">Batal</button>
@@ -148,6 +162,7 @@
     const courseInput = document.getElementById('courseInput');
     const descInput = document.getElementById('descInput');
     const dateInput = document.getElementById('dateInput');
+    const timeInput = document.getElementById('timeInput');
     const errText = document.getElementById('errText');
     dateInput.min = new Date().toISOString().slice(0,10);
     courseInput.focus();
@@ -158,8 +173,9 @@
       const deadline = dateInput.value;
       if (!course || !deadline) { errText.style.display = 'block'; return; }
       const id = 't' + Date.now() + Math.random().toString(36).slice(2,7);
-      tasks.push({ id, course, desc: descInput.value.trim(), deadline, category: selectedCat });
+      tasks.push({ id, course, desc: descInput.value.trim(), deadline, time: timeInput.value || null, category: selectedCat });
       saveTasks(); renderReminderBanner(); renderCards(); closeModal();
+      checkAndNotify();
     });
   }
   function closeModal() { overlayRoot.innerHTML = ''; }
@@ -175,10 +191,21 @@
     if (notifPermission !== 'granted') return;
     let changed = false;
     tasks.forEach(task => {
-      const d = daysUntil(task.deadline);
-      if ((d === 0 || d === 1) && !notifiedIds.has(task.id)) {
-        try { new Notification('📌 Pengingat Tugas', { body: `${task.course} — deadline ${d===0?'hari ini':'besok'}!` }); } catch(e) {}
-        notifiedIds.add(task.id); changed = true;
+      const h = hoursUntil(task);
+      const mark24 = task.id + ':24h';
+      const mark1 = task.id + ':1h';
+      const markLate = task.id + ':late';
+      if (h <= 24 && h > 1 && !notifiedIds.has(mark24)) {
+        try { new Notification('📌 Pengingat Tugas', { body: `${task.course} — deadline kurang dari 24 jam lagi!` }); } catch(e) {}
+        notifiedIds.add(mark24); changed = true;
+      }
+      if (h <= 1 && h > 0 && !notifiedIds.has(mark1)) {
+        try { new Notification('⏰ Deadline Mepet!', { body: `${task.course} — kurang dari 1 jam lagi!` }); } catch(e) {}
+        notifiedIds.add(mark1); changed = true;
+      }
+      if (h <= 0 && !notifiedIds.has(markLate)) {
+        try { new Notification('⚠️ Deadline Lewat', { body: `${task.course} — deadlinenya sudah lewat!` }); } catch(e) {}
+        notifiedIds.add(markLate); changed = true;
       }
     });
     if (changed) saveNotified();
