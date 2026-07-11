@@ -1,6 +1,6 @@
 const CACHE_NAME = 'papan-tugas-v1';
 const FILES_TO_CACHE = [
-  './tugas.html',
+  './index.html',
   './tugas.css',
   './tugas.js',
   './manifest.json',
