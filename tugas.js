@@ -187,6 +187,22 @@
     renderApp();
     if (perm === 'granted') checkAndNotify();
   }
+  function sendNotification(title, body) {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg) {
+          reg.showNotification(title, { body, icon: 'icons/icon-192.png' });
+        } else {
+          try { new Notification(title, { body }); } catch (e) {}
+        }
+      }).catch(() => {
+        try { new Notification(title, { body }); } catch (e) {}
+      });
+    } else {
+      try { new Notification(title, { body }); } catch (e) {}
+    }
+  }
+
   function checkAndNotify() {
     if (notifPermission !== 'granted') return;
     let changed = false;
@@ -196,15 +212,15 @@
       const mark1 = task.id + ':1h';
       const markLate = task.id + ':late';
       if (h <= 24 && h > 1 && !notifiedIds.has(mark24)) {
-        try { new Notification('📌 Pengingat Tugas', { body: `${task.course} — deadline kurang dari 24 jam lagi!` }); } catch(e) {}
+        sendNotification('📌 Pengingat Tugas', `${task.course} — deadline kurang dari 24 jam lagi!`);
         notifiedIds.add(mark24); changed = true;
       }
       if (h <= 1 && h > 0 && !notifiedIds.has(mark1)) {
-        try { new Notification('⏰ Deadline Mepet!', { body: `${task.course} — kurang dari 1 jam lagi!` }); } catch(e) {}
+        sendNotification('⏰ Deadline Mepet!', `${task.course} — kurang dari 1 jam lagi!`);
         notifiedIds.add(mark1); changed = true;
       }
       if (h <= 0 && !notifiedIds.has(markLate)) {
-        try { new Notification('⚠️ Deadline Lewat', { body: `${task.course} — deadlinenya sudah lewat!` }); } catch(e) {}
+        sendNotification('⚠️ Deadline Lewat', `${task.course} — deadlinenya sudah lewat!`);
         notifiedIds.add(markLate); changed = true;
       }
     });
@@ -212,12 +228,13 @@
   }
 
   renderApp();
-  checkAndNotify();
-  setInterval(checkAndNotify, 5 * 60 * 1000);
 
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('service-worker.js').catch(() => {});
+    navigator.serviceWorker.register('service-worker.js').catch(() => {}).finally(() => {
+      checkAndNotify();
     });
+  } else {
+    checkAndNotify();
   }
+  setInterval(checkAndNotify, 5 * 60 * 1000);
 })();
